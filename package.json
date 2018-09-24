@@ -1,0 +1,53 @@
+{
+    "name": "py-coverage-view",
+    "displayName": "py-coverage-view",
+    "description": "Displays (Python) code coverage results on the editor.",
+    "version": "0.0.1",
+    "publisher": "rduldulao",
+    "engines": {
+        "vscode": "^1.27.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": ["onLanguage:python"],
+    "main": "./out/extension",
+    "contributes": {
+        "commands": [
+            {
+                "command": "pycoveragedisplay.runPytestCov",
+                "title": "Python: Run Pycov-test"
+            }
+        ],
+        "configuration": {
+            "type": "object",
+            "title": "PyTest-Cov Editor Highlighter",
+            "properties": {
+                "python.coveragepy.file":{
+                    "type": "string",
+                    "default": ".coverage",
+                    "description": "Coverage.py outputfile (usually .coverage)"
+                },
+                "python.coveragepy.highlight": {
+                    "type": "string",
+                    "default": "rgba(200,200,200,.35)",
+                    "description": "Highlight color"
+                }
+            }
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "postinstall": "node ./node_modules/vscode/bin/install",
+        "test": "npm run compile && node ./node_modules/vscode/bin/test"
+    },
+    "devDependencies": {
+        "typescript": "^2.6.1",
+        "vscode": "^1.1.21",
+        "tslint": "^5.8.0",
+        "@types/node": "^8.10.25",
+        "@types/mocha": "^2.2.42"
+    }
+}
