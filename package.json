@@ -4,6 +4,11 @@
     "description": "Displays (Python) code coverage results on the editor.",
     "version": "0.0.1",
     "publisher": "rduldulao",
+    "homepage": "https://github.com/rduldulao/py-coverage-view",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/rduldulao/py-coverage-view.git"
+    },
     "engines": {
         "vscode": "^1.27.0"
     },
