@@ -30,7 +30,13 @@ This extension contributes the following settings:
 
 ## Known Issues
 
-TODO:
+This tool cannot yet process branch coverage info.  Make sure to not use the --branch flag when running coverage.py or pytest-cov, using .coveragerc file, this would be:
+
+```
+[run]
+branch = True
+```
+TODO: arcs / branch coverage
 
 ## Release Notes
 
