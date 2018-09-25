@@ -48,6 +48,9 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     vscode.workspace.onDidChangeTextDocument(ev => {
+        if (!ev.document.fileName.endsWith("py")) {
+            return;
+        }
         console.log(ev.document.uri.fsPath + " changed ");
         let editor = vscode.window.activeTextEditor;
         if (editor && editor.document.uri.fsPath === ev.document.uri.fsPath) {
@@ -85,46 +88,53 @@ export function deactivate() {
 
 function initCache(cache: { [id: string]: Array<any> }, decors: { [id: string]: vscode.TextEditorDecorationType } ) {
     console.log("Init cache");
-    let editor = vscode.window.activeTextEditor;
-    let activeEditorFS: string = "";
-    if (editor) {
-        activeEditorFS = editor.document.uri.fsPath;
-    }
     vscode.workspace.findFiles(getCoverageFilePattern()).then(values => {
         values.forEach(value => {
 
             let content = fs.readFileSync(value.fsPath);
-            console.log(content);
 
             let x = content.indexOf("{");
-            console.log(x);
             if (x >= 0) {
                 let buffer = content.slice(x);
-                console.log(buffer.toString());
                 let jsonData = JSON.parse(buffer.toString());
-                console.log(jsonData);
-                Object.keys(jsonData.lines).forEach(
-                    key => {
-                        console.log("Got key " + key);
-                        cache[key] = jsonData.lines[key];
-                        if (editor && key === activeEditorFS) {
-                            let ranges: Array<vscode.Range> = [];
-                            cache[key].forEach(value => {
-
-                                if (editor) {
-                                    ranges.push(editor.document.lineAt(value - 1).range);
-                                }
-                            });
-                            let decor = getHighlightDecoration();
-                            editor.setDecorations(decor, ranges);
-                            decors[editor.document.uri.fsPath] = decor;
-                        }
-                    }
-                );
+                processCoverageFileContent(jsonData, cache, decors)
             }
         });
     });
 }
+
+function processCoverageFileContent(jsonData: any, cache: {[id:string]: Array<any>}, decors: {[id:string]: vscode.TextEditorDecorationType}){
+    if ('arcs' in jsonData) {     
+        console.log("Arcs data found.")   
+        Object.keys(jsonData.arcs).forEach(
+            key => {
+                let lines = new Set();
+                let arcs: Array<any> = jsonData.arcs[key];
+                arcs.forEach(
+                    item => {
+                        //get the nums as long as they are not nega
+                        item.forEach(
+                            (subitem: any) => {
+                                if (subitem > 0) { 
+                                    lines.add(subitem);
+                                }
+                            }
+                        );
+                    }
+                );
+                cache[key] = Array.from(lines.values());
+            }
+        );   
+    } else {
+        Object.keys(jsonData.lines).forEach(
+            key => {
+                cache[key] = jsonData.lines[key];
+            }
+        );
+    }
+    updateOpenedEditors(cache, decors);
+}
+
 function getCoverageFilePattern(): string {
     const configuredFilename = vscode.workspace.getConfiguration().get("python.coveragepy.file");
     if (configuredFilename) {
@@ -146,13 +156,7 @@ function updateCache(cache: { [id: string]: Array<any> }, uri: vscode.Uri, decor
         if (x >= 0) {
             let buffer = data.slice(x);
             let jsonData = JSON.parse(buffer.toString());
-            Object.keys(jsonData.lines).forEach(
-                key => {
-                    cache[key] = jsonData.lines[key];
-                }
-            );
-            updateOpenedEditors(cache, decors);
-
+            processCoverageFileContent(jsonData, cache, decors);
         }
     });
 }
@@ -167,7 +171,6 @@ function updateOpenedEditors(cache: { [id: string]: Array<any> }, decors:{[id:st
         }
         let ranges: Array<vscode.Range> = [];
         cache[path].forEach(value => {
-
             if (editor) {
                 ranges.push(editor.document.lineAt(value - 1).range);
             }
