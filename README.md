@@ -11,7 +11,6 @@ TODO: animation
 The extension requires the following modules on your python environment.
 
 * Install pytest
-
 ```
 pip install pytest
 ```
