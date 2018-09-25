@@ -2,7 +2,7 @@
     "name": "py-coverage-view",
     "displayName": "py-coverage-view",
     "description": "Displays (Python) code coverage results on the editor.",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "publisher": "rduldulao",
     "homepage": "https://github.com/rduldulao/py-coverage-view",
     "repository": {
@@ -15,7 +15,9 @@
     "categories": [
         "Other"
     ],
-    "activationEvents": ["onLanguage:python"],
+    "activationEvents": [
+        "onLanguage:python"
+    ],
     "main": "./out/extension",
     "contributes": {
         "commands": [
@@ -28,7 +30,7 @@
             "type": "object",
             "title": "PyTest-Cov Editor Highlighter",
             "properties": {
-                "python.coveragepy.file":{
+                "python.coveragepy.file": {
                     "type": "string",
                     "default": ".coverage",
                     "description": "Coverage.py outputfile (usually .coverage)"
