@@ -30,21 +30,21 @@ This extension contributes the following settings:
 
 ## Known Issues
 
-This tool cannot yet process branch coverage info.  Make sure to not use the --branch flag when running coverage.py or pytest-cov, using .coveragerc file, this would be:
-
-```
-[run]
-branch = True
-```
-TODO: arcs / branch coverage
+TODO:
 
 ## Release Notes
 
 Initial version.  WARNING:  This was created to support  the author's workflow  at work and a means to learn how to create VS Code extensions :D  Please email: rduldulao@salarium.com for suggestions/improvements.
 
+### 0.0.2
+
+Added support for arcs data.
+
 ### 0.0.1
 
 Initial release 
+
+
 
 
 
