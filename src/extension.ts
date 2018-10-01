@@ -27,23 +27,7 @@ export function activate(context: vscode.ExtensionContext) {
     //TODO: add delete handler
     vscode.window.onDidChangeActiveTextEditor((editor) => {
         if (editor && editor.document.uri.fsPath in workspaceCache) {
-            let lines = workspaceCache[editor.document.uri.fsPath];
-            let ranges: Array<vscode.Range> = [];
-            lines.forEach(value => {
-                ranges.push(editor.document.lineAt(value - 1).range);
-            });
-
-            if (editor.document.uri.fsPath in decorCache) {
-                if (editor){
-                    decorCache[editor.document.uri.fsPath].dispose();
-
-                }
-            }
-            
-            let decor = getHighlightDecoration();
-            editor.setDecorations(decor, ranges);
-            decorCache[editor.document.uri.fsPath] = decor;
-
+            updateOpenedEditors(workspaceCache, decorCache);
         }
     });
 
@@ -171,7 +155,7 @@ function updateOpenedEditors(cache: { [id: string]: Array<any> }, decors:{[id:st
             delete decors[path];
         }
         let ranges: Array<vscode.Range> = [];
-        if (mode == "covered") {
+        if (mode === "covered") {
             cache[path].forEach(value => {
                 if (editor) {
                     ranges.push(editor.document.lineAt(value - 1).range);
@@ -180,7 +164,7 @@ function updateOpenedEditors(cache: { [id: string]: Array<any> }, decors:{[id:st
         } else {
             let lines = new Set(Array.from(Array(editor.document.lineCount).keys()));
             cache[path].forEach(value => {
-                lines.delete(value-1)
+                lines.delete(value-1);
             });
             lines.forEach(value => {
                     ranges.push(editor.document.lineAt(value).range);

@@ -25,7 +25,8 @@ pip install pytest-cov
 This extension contributes the following settings:
 
 * `python.coveragepy.file`: The coverage.py internal file for saving coverage results.
-* `python.coveragepy.highlight`: Highlight color.
+* `python.coverageView.highlight`: Highlight color.
+* `python.coverageView.highlightMode`: Highlight mode: ```uncovered```(default) or ```covered```.
 
 ## Known Issues
 
@@ -34,6 +35,12 @@ TODO:
 ## Release Notes
 
 Initial version.  WARNING:  This was created to support  the author's workflow  at work and a means to learn how to create VS Code extensions :D  Please email: rduldulao@salarium.com for suggestions/improvements.
+
+### 0.0.3
+
+- Changed option name for highlight: ```python.coverageView.highlight```
+- Added highlight mode.
+- From this version: by default, uncovered code will be highlighted. This behavior can be modified via the ```python.coverageView.highlightMode``` option.
 
 ### 0.0.2
 
