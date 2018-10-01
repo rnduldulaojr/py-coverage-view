@@ -35,10 +35,16 @@
                     "default": ".coverage",
                     "description": "Coverage.py outputfile (usually .coverage)"
                 },
-                "python.coveragepy.highlight": {
+                "python.coverageView.highlight": {
                     "type": "string",
                     "default": "rgba(200,200,200,.35)",
                     "description": "Highlight color"
+                },
+                "python.coverageView.highlightMode": {
+                    "type": "string",
+                    "default": "uncovered",
+                    "description": "Mode which code is highlighted: 'covered' or 'uncovered'(default)",
+                    "enum": ["covered", "uncovered"]
                 }
             }
         }
