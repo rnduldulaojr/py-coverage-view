@@ -27,23 +27,7 @@ export function activate(context: vscode.ExtensionContext) {
     //TODO: add delete handler
     vscode.window.onDidChangeActiveTextEditor((editor) => {
         if (editor && editor.document.uri.fsPath in workspaceCache) {
-            let lines = workspaceCache[editor.document.uri.fsPath];
-            let ranges: Array<vscode.Range> = [];
-            lines.forEach(value => {
-                ranges.push(editor.document.lineAt(value - 1).range);
-            });
-
-            if (editor.document.uri.fsPath in decorCache) {
-                if (editor){
-                    decorCache[editor.document.uri.fsPath].dispose();
-
-                }
-            }
-            
-            let decor = getHighlightDecoration();
-            editor.setDecorations(decor, ranges);
-            decorCache[editor.document.uri.fsPath] = decor;
-
+            updateOpenedEditors(workspaceCache, decorCache);
         }
     });
 
@@ -163,6 +147,7 @@ function updateCache(cache: { [id: string]: Array<any> }, uri: vscode.Uri, decor
 
 function updateOpenedEditors(cache: { [id: string]: Array<any> }, decors:{[id:string]: vscode.TextEditorDecorationType}) {
     let editors = vscode.window.visibleTextEditors;
+    let mode = vscode.workspace.getConfiguration().get("python.coverageView.highlightMode")
     editors.forEach(editor => {
         let path = editor.document.uri.fsPath;
         if (path in decors) {
@@ -170,11 +155,22 @@ function updateOpenedEditors(cache: { [id: string]: Array<any> }, decors:{[id:st
             delete decors[path];
         }
         let ranges: Array<vscode.Range> = [];
-        cache[path].forEach(value => {
-            if (editor) {
-                ranges.push(editor.document.lineAt(value - 1).range);
-            }
-        });
+        if (mode === "covered") {
+            cache[path].forEach(value => {
+                if (editor) {
+                    ranges.push(editor.document.lineAt(value - 1).range);
+                }
+            });
+        } else {
+            let lines = new Set(Array.from(Array(editor.document.lineCount).keys()));
+            cache[path].forEach(value => {
+                lines.delete(value-1);
+            });
+            lines.forEach(value => {
+                    ranges.push(editor.document.lineAt(value).range);
+            });
+
+        }
         let decor = getHighlightDecoration();
         editor.setDecorations(decor, ranges);
         decors[editor.document.uri.fsPath] = decor;
@@ -184,7 +180,7 @@ function updateOpenedEditors(cache: { [id: string]: Array<any> }, decors:{[id:st
 
 function getHighlightDecoration(): vscode.TextEditorDecorationType {
     let decor = vscode.window.createTextEditorDecorationType(
-        { backgroundColor: vscode.workspace.getConfiguration().get("python.coveragepy.highlight")}
+        { backgroundColor: vscode.workspace.getConfiguration().get("python.coverageView.highlight")}
     );
     return decor;
 }
