@@ -3,19 +3,21 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import * as fs from 'fs';
+import {exec} from 'child_process';
 
-var terminal: vscode.Terminal;
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
     let workspaceCache: { [id: string]: Array<any> } = {};
     let decorCache: { [id: string]: vscode.TextEditorDecorationType } = {};
+    let outputChannel = vscode.window.createOutputChannel("PyCov-Test");
+    let statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
     //initialize
 
     initCache(workspaceCache, decorCache);
     let covFileWatcher = vscode.workspace.createFileSystemWatcher(getCoverageFilePattern(), false, false, false);
     covFileWatcher.onDidChange((uri) => {
-        console.log("Coverage file changed");
+        //console.log("Coverage file changed");
         updateCache(workspaceCache, uri, decorCache);
     });
 
@@ -35,7 +37,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (!ev.document.fileName.endsWith("py")) {
             return;
         }
-        console.log(ev.document.uri.fsPath + " changed ");
+        //console.log(ev.document.uri.fsPath + " changed ");
         let editor = vscode.window.activeTextEditor;
         if (editor && editor.document.uri.fsPath === ev.document.uri.fsPath) {
                 if (editor && editor.document.uri.fsPath in decorCache) {
@@ -50,20 +52,26 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.workspace.onDidSaveTextDocument(doc => {
         if (doc.fileName.endsWith("py")) {
-            runPytestCov();
+            runPytestCov(outputChannel, statusBar);
         }
     });
 
-    console.log('Congratulations, your extension "py-coverage-view" is now active!');
+    //console.log('Congratulations, your extension "py-coverage-view" is now active!');
 
     // The command has been defined in the package.json file
     // Now provide the implementation of the command with  registerCommand
     // The commandId parameter must match the command field in package.json
     let disposable = vscode.commands.registerCommand('pycoveragedisplay.runPytestCov', () => {
-        runPytestCov();
+        runPytestCov(outputChannel, statusBar);
     });
 
     context.subscriptions.push(disposable);
+    context.subscriptions.push(statusBar);
+    context.subscriptions.push(outputChannel);
+
+    //init status bar:
+    updateStatusBar(statusBar, "-", "-", "-");    
+
 }
 
 // this method is called when your extension is deactivated
@@ -143,11 +151,15 @@ function updateCache(cache: { [id: string]: Array<any> }, uri: vscode.Uri, decor
             processCoverageFileContent(jsonData, cache, decors);
         }
     });
+    updateOpenedEditors(cache, decors);
 }
 
 function updateOpenedEditors(cache: { [id: string]: Array<any> }, decors:{[id:string]: vscode.TextEditorDecorationType}) {
     let editors = vscode.window.visibleTextEditors;
-    let mode = vscode.workspace.getConfiguration().get("python.coverageView.highlightMode")
+    if (editors.length === 0) {
+        return;
+    }
+    let mode = vscode.workspace.getConfiguration().get("python.coverageView.highlightMode");
     editors.forEach(editor => {
         let path = editor.document.uri.fsPath;
         if (path in decors) {
@@ -157,17 +169,19 @@ function updateOpenedEditors(cache: { [id: string]: Array<any> }, decors:{[id:st
         let ranges: Array<vscode.Range> = [];
         if (mode === "covered") {
             cache[path].forEach(value => {
-                if (editor && !isCommentOrDocstring(editor.document.lineAt(value -1).text)) {
+                if (editor && !isIgnorable(editor.document.lineAt(value -1).text)) {
                     ranges.push(editor.document.lineAt(value - 1).range);
                 }
             });
         } else {
             let lines = new Set(Array.from(Array(editor.document.lineCount).keys()));
-            cache[path].forEach(value => {
-                lines.delete(value-1);
-            });
+            if (path in cache) {
+                cache[path].forEach(value => {
+                    lines.delete(value-1);
+                });
+            }
             lines.forEach(value => {
-                if (editor && !isCommentOrDocstring(editor.document.lineAt(value).text)) {
+                if (editor && !isIgnorable(editor.document.lineAt(value).text)) {
                     ranges.push(editor.document.lineAt(value).range);
                 }
             });
@@ -180,9 +194,9 @@ function updateOpenedEditors(cache: { [id: string]: Array<any> }, decors:{[id:st
 
 }
 
-function isCommentOrDocstring(line: string): boolean {
+function isIgnorable(line: string): boolean {
     line = line.trimLeft();
-    return (line.length > 0 && (line.charAt(0) == "#" || line.startsWith("\"\"\""))) ;
+    return (line.length > 0 && (line.charAt(0) == "#" || line.startsWith("\"\"\"") || line === "pass" || line === "else:")) ;
 }
 
 function getHighlightDecoration(): vscode.TextEditorDecorationType {
@@ -192,10 +206,43 @@ function getHighlightDecoration(): vscode.TextEditorDecorationType {
     return decor;
 }
 
-function runPytestCov() {
-    if (!terminal) {
-        terminal = vscode.window.createTerminal("PyTest-Cov");
+function runPytestCov(outputChannel: vscode.OutputChannel, statusBar: vscode.StatusBarItem ) {
+    //if (!terminal) {
+    //    terminal = vscode.window.createTerminal("PyTest-Cov");
+    //}
+    //terminal.sendText("py.test --cov=.", true);
+    
+    let folders = vscode.workspace.workspaceFolders
+    if (folders == undefined) {
+        outputChannel.append("No folders...")
+        return;
     }
-    terminal.sendText("py.test --cov=.", true);
+    let rootPath = folders[0].uri.fsPath
+    let cmd = "cd " + rootPath + " && py.test --cov=. | grep TOTAL "; 
+    console.log(cmd)
+    var child = exec(cmd, (err, stdout, stderr) => {
+       
+        if (err) {
+            outputChannel.append(stderr);
+            console.log(stderr);
+            updateStatusBar(statusBar, "N/A", "N/A", "N/A");
+            return;
+        }
+        console.log(stdout)
+        let items = stdout.toString().replace(/\s\s+/g, ' ').split(' ');
+        if (items.length == 4) {
+            updateStatusBar(statusBar, items[1], items[2], items[3]);
+        } else {
+            updateStatusBar(statusBar, "N/A", "N/A", "N/A");
+        }
+    });
+	
 }
 
+
+function updateStatusBar(statusBar: vscode.StatusBarItem, total: string, misses: string, percent: string) {
+    statusBar.hide();
+    let mode = vscode.workspace.getConfiguration().get("python.coverageView.highlightMode");
+    statusBar.text = "Highlight: " + mode + "   Total Lines: " + total + "   Misses: " + misses + "   Cover: " + percent
+    statusBar.show();
+}
