@@ -157,7 +157,7 @@ function updateOpenedEditors(cache: { [id: string]: Array<any> }, decors:{[id:st
         let ranges: Array<vscode.Range> = [];
         if (mode === "covered") {
             cache[path].forEach(value => {
-                if (editor) {
+                if (editor && !isCommentOrDocstring(editor.document.lineAt(value -1).text)) {
                     ranges.push(editor.document.lineAt(value - 1).range);
                 }
             });
@@ -167,7 +167,9 @@ function updateOpenedEditors(cache: { [id: string]: Array<any> }, decors:{[id:st
                 lines.delete(value-1);
             });
             lines.forEach(value => {
+                if (editor && !isCommentOrDocstring(editor.document.lineAt(value).text)) {
                     ranges.push(editor.document.lineAt(value).range);
+                }
             });
 
         }
@@ -176,6 +178,11 @@ function updateOpenedEditors(cache: { [id: string]: Array<any> }, decors:{[id:st
         decors[editor.document.uri.fsPath] = decor;
     });
 
+}
+
+function isCommentOrDocstring(line: string): boolean {
+    line = line.trimLeft();
+    return (line.length > 0 && (line.charAt(0) == "#" || line.startsWith("\"\"\""))) ;
 }
 
 function getHighlightDecoration(): vscode.TextEditorDecorationType {
