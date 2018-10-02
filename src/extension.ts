@@ -89,7 +89,7 @@ function initCache(cache: { [id: string]: Array<any> }, decors: { [id: string]: 
             if (x >= 0) {
                 let buffer = content.slice(x);
                 let jsonData = JSON.parse(buffer.toString());
-                processCoverageFileContent(jsonData, cache, decors)
+                processCoverageFileContent(jsonData, cache, decors);
             }
         });
     });
@@ -97,7 +97,7 @@ function initCache(cache: { [id: string]: Array<any> }, decors: { [id: string]: 
 
 function processCoverageFileContent(jsonData: any, cache: {[id:string]: Array<any>}, decors: {[id:string]: vscode.TextEditorDecorationType}){
     if ('arcs' in jsonData) {     
-        console.log("Arcs data found.")   
+        //console.log("Arcs data found.")   
         Object.keys(jsonData.arcs).forEach(
             key => {
                 let lines = new Set();
@@ -196,7 +196,7 @@ function updateOpenedEditors(cache: { [id: string]: Array<any> }, decors:{[id:st
 
 function isIgnorable(line: string): boolean {
     line = line.trimLeft();
-    return (line.length > 0 && (line.charAt(0) == "#" || line.startsWith("\"\"\"") || line === "pass" || line === "else:")) ;
+    return (line.length > 0 && (line.charAt(0) === "#" || line.startsWith("\"\"\"") || line === "pass" || line === "else:")) ;
 }
 
 function getHighlightDecoration(): vscode.TextEditorDecorationType {
@@ -212,15 +212,15 @@ function runPytestCov(outputChannel: vscode.OutputChannel, statusBar: vscode.Sta
     //}
     //terminal.sendText("py.test --cov=.", true);
     
-    let folders = vscode.workspace.workspaceFolders
-    if (folders == undefined) {
-        outputChannel.append("No folders...")
+    let folders = vscode.workspace.workspaceFolders;
+    if (folders === undefined) {
+        outputChannel.append("No folders...");
         return;
     }
-    let rootPath = folders[0].uri.fsPath
+    let rootPath = folders[0].uri.fsPath;
     let cmd = "cd " + rootPath + " && py.test --cov=. | grep TOTAL "; 
-    console.log(cmd)
-    var child = exec(cmd, (err, stdout, stderr) => {
+    //console.log(cmd)
+    exec(cmd, (err, stdout, stderr) => {
        
         if (err) {
             outputChannel.append(stderr);
@@ -228,9 +228,9 @@ function runPytestCov(outputChannel: vscode.OutputChannel, statusBar: vscode.Sta
             updateStatusBar(statusBar, "N/A", "N/A", "N/A");
             return;
         }
-        console.log(stdout)
+        console.log(stdout);
         let items = stdout.toString().replace(/\s\s+/g, ' ').split(' ');
-        if (items.length == 4) {
+        if (items.length === 4) {
             updateStatusBar(statusBar, items[1], items[2], items[3]);
         } else {
             updateStatusBar(statusBar, "N/A", "N/A", "N/A");
@@ -243,6 +243,6 @@ function runPytestCov(outputChannel: vscode.OutputChannel, statusBar: vscode.Sta
 function updateStatusBar(statusBar: vscode.StatusBarItem, total: string, misses: string, percent: string) {
     statusBar.hide();
     let mode = vscode.workspace.getConfiguration().get("python.coverageView.highlightMode");
-    statusBar.text = "Highlight: " + mode + "   Total Lines: " + total + "   Misses: " + misses + "   Cover: " + percent
+    statusBar.text = "Highlight: " + mode + "   Total Lines: " + total + "   Misses: " + misses + "   Cover: " + percent;
     statusBar.show();
 }
