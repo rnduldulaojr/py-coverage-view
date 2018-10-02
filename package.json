@@ -2,7 +2,7 @@
     "name": "py-coverage-view",
     "displayName": "py-coverage-view",
     "description": "Displays (Python) code coverage results on the editor.",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "publisher": "rduldulao",
     "homepage": "https://github.com/rduldulao/py-coverage-view",
     "repository": {
