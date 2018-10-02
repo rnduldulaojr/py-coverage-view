@@ -38,10 +38,13 @@ TODO:
 
 Initial version.  WARNING:  This was created to support  the author's workflow  at work and a means to learn how to create VS Code extensions :D  Please email: rduldulao@salarium.com for suggestions/improvements.
 
-### 0.0.5
+### 0.0.6
 - Added Status bar item for displaying Highlight mode as well as coverage stats.
 - Ignore ```pass``` and ```else:``` lines in highlighting
 - Py Cov now runs in a background shell via ```exec```
+
+### 0.0.5
+- Minor changes, skipped version
 
 ### 0.0.4
 - Does not highlight comment lines.
