@@ -2,9 +2,11 @@
 
 Highlights test covered python code on the editor. This extension uses the results of pytest-cov/coverage.py (.coverage by default) to highlight covered code.
 
-## Features
 
-TODO: animation
+## Features
+- Highlights uncovered(default) or covered code (set via settings).
+- Displays coverage stats and highlight mode in the IDE status bar.
+
 
 ## Requirements
 
@@ -35,6 +37,11 @@ TODO:
 ## Release Notes
 
 Initial version.  WARNING:  This was created to support  the author's workflow  at work and a means to learn how to create VS Code extensions :D  Please email: rduldulao@salarium.com for suggestions/improvements.
+
+### 0.0.5
+- Added Status bar item for displaying Highlight mode as well as coverage stats.
+- Ignore ```pass``` and ```else:``` lines in highlighting
+- Py Cov now runs in a background shell via ```exec```
 
 ### 0.0.4
 - Does not highlight comment lines.
