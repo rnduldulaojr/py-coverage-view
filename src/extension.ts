@@ -5,10 +5,24 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import {exec} from 'child_process';
 
+
+class CoverageStats {
+    public lines : Array<any>;
+    public numLines : string;
+    public missedLines: string;
+    public percentCovered: string;
+    constructor(lines: Array<any>, numLines: string, missedLines: string, percentCovered:string) {
+        this.lines = lines;
+        this.numLines = numLines;
+        this.missedLines = missedLines;
+        this.percentCovered = percentCovered;
+    }
+
+}
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-    let workspaceCache: { [id: string]: Array<any> } = {};
+    let workspaceCache: { [id: string]: CoverageStats } = {};
     let decorCache: { [id: string]: vscode.TextEditorDecorationType } = {};
     let outputChannel = vscode.window.createOutputChannel("PyCov-Test");
     let statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
@@ -35,6 +49,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.workspace.onDidChangeTextDocument(ev => {
         if (!ev.document.fileName.endsWith("py")) {
+            updateStatusBar(statusBar, "-", "-", "-");  
             return;
         }
         //console.log(ev.document.uri.fsPath + " changed ");
@@ -52,7 +67,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.workspace.onDidSaveTextDocument(doc => {
         if (doc.fileName.endsWith("py")) {
-            runPytestCov(outputChannel, statusBar);
+            runPytestCov(outputChannel, statusBar, workspaceCache);
         }
     });
 
@@ -62,7 +77,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Now provide the implementation of the command with  registerCommand
     // The commandId parameter must match the command field in package.json
     let disposable = vscode.commands.registerCommand('pycoveragedisplay.runPytestCov', () => {
-        runPytestCov(outputChannel, statusBar);
+        runPytestCov(outputChannel, statusBar, workspaceCache);
     });
 
     context.subscriptions.push(disposable);
@@ -78,7 +93,7 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {
 }
 
-function initCache(cache: { [id: string]: Array<any> }, decors: { [id: string]: vscode.TextEditorDecorationType } ) {
+function initCache(cache: { [id: string]: CoverageStats }, decors: { [id: string]: vscode.TextEditorDecorationType } ) {
     console.log("Init cache");
     vscode.workspace.findFiles(getCoverageFilePattern()).then(values => {
         values.forEach(value => {
@@ -95,7 +110,7 @@ function initCache(cache: { [id: string]: Array<any> }, decors: { [id: string]: 
     });
 }
 
-function processCoverageFileContent(jsonData: any, cache: {[id:string]: Array<any>}, decors: {[id:string]: vscode.TextEditorDecorationType}){
+function processCoverageFileContent(jsonData: any, cache: {[id:string]: CoverageStats}, decors: {[id:string]: vscode.TextEditorDecorationType}){
     if ('arcs' in jsonData) {     
         //console.log("Arcs data found.")   
         Object.keys(jsonData.arcs).forEach(
@@ -114,13 +129,13 @@ function processCoverageFileContent(jsonData: any, cache: {[id:string]: Array<an
                         );
                     }
                 );
-                cache[key] = Array.from(lines.values());
+                cache[key] = new CoverageStats(Array.from(lines.values()),'-','-','-');
             }
         );   
     } else {
         Object.keys(jsonData.lines).forEach(
             key => {
-                cache[key] = jsonData.lines[key];
+                cache[key] = new CoverageStats(jsonData.lines[key],'-','-','-%');
             }
         );
     }
@@ -135,7 +150,7 @@ function getCoverageFilePattern(): string {
     return "**/.coverage";
 }
 
-function updateCache(cache: { [id: string]: Array<any> }, uri: vscode.Uri, decors:{[id:string]: vscode.TextEditorDecorationType}) {
+function updateCache(cache: { [id: string]: CoverageStats }, uri: vscode.Uri, decors:{[id:string]: vscode.TextEditorDecorationType}) {
     console.log("Updating cache");
     fs.readFile(uri.fsPath, (err, data) => {
         if (err) {
@@ -154,7 +169,7 @@ function updateCache(cache: { [id: string]: Array<any> }, uri: vscode.Uri, decor
     updateOpenedEditors(cache, decors);
 }
 
-function updateOpenedEditors(cache: { [id: string]: Array<any> }, decors:{[id:string]: vscode.TextEditorDecorationType}) {
+function updateOpenedEditors(cache: { [id: string]: CoverageStats }, decors:{[id:string]: vscode.TextEditorDecorationType}) {
     let editors = vscode.window.visibleTextEditors;
     if (editors.length === 0) {
         return;
@@ -167,20 +182,24 @@ function updateOpenedEditors(cache: { [id: string]: Array<any> }, decors:{[id:st
             delete decors[path];
         }
         let ranges: Array<vscode.Range> = [];
-        if (mode === "covered") {
-            cache[path].forEach(value => {
-                if (editor && !isIgnorable(editor.document.lineAt(value -1).text)) {
-                    ranges.push(editor.document.lineAt(value - 1).range);
-                }
-            });
-        } else {
-            let lines = new Set(Array.from(Array(editor.document.lineCount).keys()));
+        if (mode === "covered" ) {
             if (path in cache) {
-                cache[path].forEach(value => {
-                    lines.delete(value-1);
+                let lines = cache[path].lines;
+                lines.forEach(value => {
+                    if (editor && !isIgnorable(editor.document.lineAt(value -1).text)) {
+                        ranges.push(editor.document.lineAt(value - 1).range);
+                    }
                 });
             }
-            lines.forEach(value => {
+        } else {
+            let rlines = new Set(Array.from(Array(editor.document.lineCount).keys()));
+            if (path in cache) {
+                let lines = cache[path].lines;
+                lines.forEach(value => {
+                    rlines.delete(value-1);
+                });
+            }
+            rlines.forEach(value => {
                 if (editor && !isIgnorable(editor.document.lineAt(value).text)) {
                     ranges.push(editor.document.lineAt(value).range);
                 }
@@ -195,8 +214,12 @@ function updateOpenedEditors(cache: { [id: string]: Array<any> }, decors:{[id:st
 }
 
 function isIgnorable(line: string): boolean {
-    line = line.trimLeft();
-    return (line.length > 0 && (line.charAt(0) === "#" || line.startsWith("\"\"\"") || line === "pass" || line === "else:")) ;
+    line = line.trim();
+    return (line.length > 0 && (line.charAt(0) === "#"    || 
+                                line.startsWith("\"\"\"") || 
+                                line === "pass"           || 
+                                line === "else:"          ||
+                                line === "")) ;
 }
 
 function getHighlightDecoration(): vscode.TextEditorDecorationType {
@@ -206,7 +229,7 @@ function getHighlightDecoration(): vscode.TextEditorDecorationType {
     return decor;
 }
 
-function runPytestCov(outputChannel: vscode.OutputChannel, statusBar: vscode.StatusBarItem ) {
+function runPytestCov(outputChannel: vscode.OutputChannel, statusBar: vscode.StatusBarItem, cache:  { [id: string]: CoverageStats }) {
     //if (!terminal) {
     //    terminal = vscode.window.createTerminal("PyTest-Cov");
     //}
@@ -218,23 +241,62 @@ function runPytestCov(outputChannel: vscode.OutputChannel, statusBar: vscode.Sta
         return;
     }
     let rootPath = folders[0].uri.fsPath;
-    let cmd = "cd " + rootPath + " && py.test --cov=. | grep TOTAL "; 
+    let cmd = "cd " + rootPath + " && py.test --cov=. "; 
+    if (!rootPath.endsWith("/")) {
+        rootPath += "/";
+    }
     //console.log(cmd)
     exec(cmd, (err, stdout, stderr) => {
        
         if (err) {
             outputChannel.append(stderr);
             console.log(stderr);
-            updateStatusBar(statusBar, "N/A", "N/A", "N/A");
+            updateStatusBar(statusBar, "-", "-", "-");
             return;
         }
-        console.log(stdout);
-        let items = stdout.toString().replace(/\s\s+/g, ' ').split(' ');
-        if (items.length === 4) {
-            updateStatusBar(statusBar, items[1], items[2], items[3]);
-        } else {
-            updateStatusBar(statusBar, "N/A", "N/A", "N/A");
+
+        let lines = stdout.split("\n")
+        lines.forEach(line => {
+            if (line.trim().endsWith("%")) {
+                let items = stdout.toString().replace(/\s\s+/g, ' ').split(' ');
+                let key = rootPath + items[0]; //the filename
+                if (key in cache) {
+                    cache[key].missedLines = items[1];
+                    cache[key].numLines = items[2];
+                    cache[key].percentCovered = items[3];
+                } else {
+                    cache[key] = new CoverageStats(new Array(0), items[1], items[2], items[3]);
+                }
+
+            }
+        });
+        
+        let activeEditor = vscode.window.activeTextEditor;
+        if (activeEditor) {
+            //get TOTAL path if any
+            let total = "-";
+            if ("TOTAL" in cache) {
+                total = cache["TOTAL"].percentCovered;
+            }
+            let path = activeEditor.document.uri.fsPath;
+            if (path in cache) {
+                if (total !== '-') {
+                    total = cache[path].percentCovered + " / " + total + ("(TOTAL)")
+                } else {
+                    total = cache[path].percentCovered;
+                }
+                updateStatusBar(statusBar, cache[path].numLines, cache[path].missedLines, total);
+            }
         }
+
+        // let items = 
+
+        // let items = stdout.toString().replace(/\s\s+/g, ' ').split(' ');
+        // if (items.length === 4) {
+        //     updateStatusBar(statusBar, items[1], items[2], items[3]);
+        // } else {
+        //     updateStatusBar(statusBar, "N/A", "N/A", "N/A");
+        // }
     });
 	
 }
@@ -243,6 +305,6 @@ function runPytestCov(outputChannel: vscode.OutputChannel, statusBar: vscode.Sta
 function updateStatusBar(statusBar: vscode.StatusBarItem, total: string, misses: string, percent: string) {
     statusBar.hide();
     let mode = vscode.workspace.getConfiguration().get("python.coverageView.highlightMode");
-    statusBar.text = "Highlight: " + mode + "   Total Lines: " + total + "   Misses: " + misses + "   Cover: " + percent;
+    statusBar.text = "Highlight: " + mode + "   Lines: " + total + "   Misses: " + misses + "   Cover: " + percent;
     statusBar.show();
 }
