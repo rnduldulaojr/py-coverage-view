@@ -1,4 +1,4 @@
-'use strict';
+    'use strict';
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
@@ -19,6 +19,8 @@ class CoverageStats {
     }
 
 }
+
+
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -44,6 +46,25 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.onDidChangeActiveTextEditor((editor) => {
         if (editor && editor.document.uri.fsPath in workspaceCache) {
             updateOpenedEditors(workspaceCache, decorCache);
+        }
+     
+        if (editor) {
+            //get TOTAL path if any
+            let total = "-";
+            if ("TOTAL" in workspaceCache) {
+                total = workspaceCache["TOTAL"].percentCovered;
+            }
+            let path = editor.document.uri.fsPath;
+
+            if (path in workspaceCache) {
+                let stats = workspaceCache[path];
+                if (total !== '-') {
+                    total = workspaceCache[path].percentCovered + "   /   " + total + (" (OVERALL)");
+                } else {
+                    total = workspaceCache[path].percentCovered;
+                }
+                updateStatusBar(statusBar, workspaceCache[path].numLines, workspaceCache[path].missedLines, total);
+            }
         }
     });
 
@@ -85,7 +106,9 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(outputChannel);
 
     //init status bar:
-    updateStatusBar(statusBar, "-", "-", "-");    
+   // updateStatusBar(statusBar, "-", "-", "-");    
+    runPytestCov(outputChannel, statusBar, workspaceCache);
+    
 
 }
 
@@ -129,13 +152,22 @@ function processCoverageFileContent(jsonData: any, cache: {[id:string]: Coverage
                         );
                     }
                 );
-                cache[key] = new CoverageStats(Array.from(lines.values()),'-','-','-');
+                if (key in cache) {
+                    cache[key].lines = jsonData.lines[key];
+                } else {
+                    cache[key] = new CoverageStats(jsonData.lines[key],'-','-','-%');
+                }
+                
             }
         );   
     } else {
         Object.keys(jsonData.lines).forEach(
             key => {
-                cache[key] = new CoverageStats(jsonData.lines[key],'-','-','-%');
+                if (key in cache) {
+                    cache[key].lines = jsonData.lines[key];
+                } else {
+                    cache[key] = new CoverageStats(jsonData.lines[key],'-','-','-%');
+                }
             }
         );
     }
@@ -254,19 +286,24 @@ function runPytestCov(outputChannel: vscode.OutputChannel, statusBar: vscode.Sta
             updateStatusBar(statusBar, "-", "-", "-");
             return;
         }
-
-        let lines = stdout.split("\n")
+         let lines = stdout.split("\n");
         lines.forEach(line => {
-            if (line.trim().endsWith("%")) {
-                let items = stdout.toString().replace(/\s\s+/g, ' ').split(' ');
+             if (line.trim().endsWith("%")) {
+                let items = line.replace(/\s\s+/g, ' ').split(' ');
+                if (items.length !== 4) {
+                    return;
+                } 
                 let key = rootPath + items[0]; //the filename
-                if (key in cache) {
-                    cache[key].missedLines = items[1];
-                    cache[key].numLines = items[2];
-                    cache[key].percentCovered = items[3];
-                } else {
-                    cache[key] = new CoverageStats(new Array(0), items[1], items[2], items[3]);
-                }
+                 if (key in cache) {
+                    let stats = cache[key];
+                    stats.numLines = items[1];
+                    stats.missedLines = items[2];
+                    stats.percentCovered = items[3];
+                    cache[key] = stats;
+                    
+                } else if (items[0] == "TOTAL") {
+                    cache["TOTAL"] = new CoverageStats(new Array(0), items[1], items[2], items[3]);
+                } 
 
             }
         });
@@ -281,14 +318,14 @@ function runPytestCov(outputChannel: vscode.OutputChannel, statusBar: vscode.Sta
             let path = activeEditor.document.uri.fsPath;
             if (path in cache) {
                 if (total !== '-') {
-                    total = cache[path].percentCovered + " / " + total + ("(TOTAL)")
+                    total = cache[path].percentCovered + "   /   " + total + (" (OVERALL)");
                 } else {
                     total = cache[path].percentCovered;
                 }
                 updateStatusBar(statusBar, cache[path].numLines, cache[path].missedLines, total);
             }
         }
-
+       
         // let items = 
 
         // let items = stdout.toString().replace(/\s\s+/g, ' ').split(' ');
@@ -302,9 +339,10 @@ function runPytestCov(outputChannel: vscode.OutputChannel, statusBar: vscode.Sta
 }
 
 
+
 function updateStatusBar(statusBar: vscode.StatusBarItem, total: string, misses: string, percent: string) {
     statusBar.hide();
     let mode = vscode.workspace.getConfiguration().get("python.coverageView.highlightMode");
-    statusBar.text = "Highlight: " + mode + "   Lines: " + total + "   Misses: " + misses + "   Cover: " + percent;
+    statusBar.text = "Highlight: " + mode + "  Current File --  Lines: " + total + "   Misses: " + misses + "   Cover: " + percent;
     statusBar.show();
 }
