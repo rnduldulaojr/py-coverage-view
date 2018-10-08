@@ -57,7 +57,7 @@ export function activate(context: vscode.ExtensionContext) {
             let path = editor.document.uri.fsPath;
 
             if (path in workspaceCache) {
-                let stats = workspaceCache[path];
+                //let stats = workspaceCache[path];
                 if (total !== '-') {
                     total = workspaceCache[path].percentCovered + "   /   " + total + (" (OVERALL)");
                 } else {
@@ -301,7 +301,7 @@ function runPytestCov(outputChannel: vscode.OutputChannel, statusBar: vscode.Sta
                     stats.percentCovered = items[3];
                     cache[key] = stats;
                     
-                } else if (items[0] == "TOTAL") {
+                } else if (items[0] === "TOTAL") {
                     cache["TOTAL"] = new CoverageStats(new Array(0), items[1], items[2], items[3]);
                 } 
 
