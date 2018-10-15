@@ -38,6 +38,10 @@ TODO:
 
 Initial version.  WARNING:  This was created to support  the author's workflow  at work and a means to learn how to create VS Code extensions :D  Please email: rduldulao@salarium.com for suggestions/improvements.
 
+
+### 0.0.8
+- Added ```def ``` lines as ignored line.
+
 ### 0.0.7
 - Modified status display  - now displays stats for current python file in active editor with the OVERALL coverage.
 - Will not highlight "blank" lines, although coverage.py might still detect them as uncovered.
