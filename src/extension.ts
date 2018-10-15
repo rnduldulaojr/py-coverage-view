@@ -251,7 +251,8 @@ function isIgnorable(line: string): boolean {
                                 line.startsWith("\"\"\"") || 
                                 line === "pass"           || 
                                 line === "else:"          ||
-                                line === "")) ;
+                                line === ""))             ||
+                                line.startsWith("def ");
 }
 
 function getHighlightDecoration(): vscode.TextEditorDecorationType {
@@ -262,10 +263,6 @@ function getHighlightDecoration(): vscode.TextEditorDecorationType {
 }
 
 function runPytestCov(outputChannel: vscode.OutputChannel, statusBar: vscode.StatusBarItem, cache:  { [id: string]: CoverageStats }) {
-    //if (!terminal) {
-    //    terminal = vscode.window.createTerminal("PyTest-Cov");
-    //}
-    //terminal.sendText("py.test --cov=.", true);
     
     let folders = vscode.workspace.workspaceFolders;
     if (folders === undefined) {
@@ -326,14 +323,6 @@ function runPytestCov(outputChannel: vscode.OutputChannel, statusBar: vscode.Sta
             }
         }
        
-        // let items = 
-
-        // let items = stdout.toString().replace(/\s\s+/g, ' ').split(' ');
-        // if (items.length === 4) {
-        //     updateStatusBar(statusBar, items[1], items[2], items[3]);
-        // } else {
-        //     updateStatusBar(statusBar, "N/A", "N/A", "N/A");
-        // }
     });
 	
 }
