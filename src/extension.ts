@@ -32,18 +32,18 @@ export function activate(context: vscode.ExtensionContext) {
 
     initCache(workspaceCache, decorCache);
     let covFileWatcher = vscode.workspace.createFileSystemWatcher(getCoverageFilePattern(), false, false, false);
-    covFileWatcher.onDidChange((uri) => {
+    covFileWatcher.onDidChange((uri: any) => {
         //console.log("Coverage file changed");
         updateCache(workspaceCache, uri, decorCache);
     });
 
-    covFileWatcher.onDidCreate(uri => {
+    covFileWatcher.onDidCreate((uri: any) => {
         console.log("Coverage file created");
         updateCache(workspaceCache, uri, decorCache);
     });
 
     //TODO: add delete handler
-    vscode.window.onDidChangeActiveTextEditor((editor) => {
+    vscode.window.onDidChangeActiveTextEditor((editor: any) => {
         if (editor && editor.document.uri.fsPath in workspaceCache) {
             updateOpenedEditors(workspaceCache, decorCache);
         }
@@ -68,7 +68,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    vscode.workspace.onDidChangeTextDocument(ev => {
+    vscode.workspace.onDidChangeTextDocument((ev: any) => {
         if (!ev.document.fileName.endsWith("py")) {
             updateStatusBar(statusBar, "-", "-", "-");  
             return;
@@ -86,7 +86,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     });
 
-    vscode.workspace.onDidSaveTextDocument(doc => {
+    vscode.workspace.onDidSaveTextDocument((doc: any) => {
         if (doc.fileName.endsWith("py")) {
             runPytestCov(outputChannel, statusBar, workspaceCache);
         }
@@ -207,18 +207,65 @@ function updateOpenedEditors(cache: { [id: string]: CoverageStats }, decors:{[id
         return;
     }
     let mode = vscode.workspace.getConfiguration().get("python.coverageView.highlightMode");
-    editors.forEach(editor => {
+    editors.forEach( (editor: any) => {
         let path = editor.document.uri.fsPath;
         if (path in decors) {
             decors[path].dispose();
             delete decors[path];
         }
         let ranges: Array<vscode.Range> = [];
+        //find lines where there are """ at start or end and add them to array of line numbers
+        let ignorableLines: Array<number> = [];
+        let i:number = 0;
+        let pydoc_start:number = 0;
+        let pydoc_detected:boolean = false;
+        let pydoc_token:string = "";
+        for (i = 0; i < editor.document.lineCount; i++) {
+            let line:string =  editor.document.lineAt(i).text;
+            line = line.trim();
+            console.log(i, line);
+            if (line.length === 0) {
+                ignorableLines.push(i);
+                console.log("Adding ignorable: ", i);
+                continue;
+            }
+            if (!pydoc_detected && line.startsWith("\"\"\"")) {
+                pydoc_detected = true;
+                pydoc_token = "\"\"\"";
+                pydoc_start = i;
+            } else if (!pydoc_detected &&line.startsWith("'''")) {
+                pydoc_detected = true;
+                pydoc_token = "'''";
+                pydoc_start = i;
+            }
+
+            if (pydoc_detected && (pydoc_start !== i || (pydoc_start === i && line.length > 3)) && 
+                pydoc_token !== "" && line.endsWith(pydoc_token)) {
+                ignorableLines.push(i);
+                console.log("Adding ignorable: ", i);
+                pydoc_detected = false;
+                pydoc_token = "";
+                continue;
+            }
+
+            if (pydoc_detected ||
+                       line.charAt(0) === "#"    || 
+                       line === "pass"           || 
+                       line === "else:"          ||
+                       line.startsWith("def ")   ||
+                       line.startsWith("class ")) {
+                ignorableLines.push(i);
+                console.log("Adding ignorable: ", i);
+            }
+        }
+
+        let ignorableSet = new Set(ignorableLines);
+
         if (mode === "covered" ) {
             if (path in cache) {
                 let lines = cache[path].lines;
                 lines.forEach(value => {
-                    if (editor && !isIgnorable(editor.document.lineAt(value -1).text)) {
+                    if (editor && !ignorableSet.has(value-1)) {
                         ranges.push(editor.document.lineAt(value - 1).range);
                     }
                 });
@@ -232,7 +279,7 @@ function updateOpenedEditors(cache: { [id: string]: CoverageStats }, decors:{[id
                 });
             }
             rlines.forEach(value => {
-                if (editor && !isIgnorable(editor.document.lineAt(value).text)) {
+                if (editor && !ignorableSet.has(value)) {
                     ranges.push(editor.document.lineAt(value).range);
                 }
             });
@@ -245,15 +292,6 @@ function updateOpenedEditors(cache: { [id: string]: CoverageStats }, decors:{[id
 
 }
 
-function isIgnorable(line: string): boolean {
-    line = line.trim();
-    return (line.length > 0 && (line.charAt(0) === "#"    || 
-                                line.startsWith("\"\"\"") || 
-                                line === "pass"           || 
-                                line === "else:"          ||
-                                line === ""))             ||
-                                line.startsWith("def ");
-}
 
 function getHighlightDecoration(): vscode.TextEditorDecorationType {
     let decor = vscode.window.createTextEditorDecorationType(

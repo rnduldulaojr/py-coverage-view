@@ -38,6 +38,8 @@ TODO:
 
 Initial version.  WARNING:  This was created to support  the author's workflow  at work and a means to learn how to create VS Code extensions :D  Please email: rduldulao@salarium.com for suggestions/improvements.
 
+### 0.0.9
+- Modified document processing to exclude py-docstrings in uncovered lines.
 
 ### 0.0.8
 - Added ```def ``` lines as ignored line.
